@@ -38,16 +38,14 @@ data:
 
         parameters {
           string(name: 'REPOSITORY', defaultValue: '', description: 'Url of a git repository')
-          string(name: 'COMPOSE_PATH', defaultValue: '', description: 'Path to the docker-compose file')
+          string(name: 'COMPOSE_PATH', defaultValue: 'undefined', description: 'Path to the docker-compose file')
+          string(name: 'COMPOSE_FILENAME', defaultValue: 'docker-compose.yml', description: 'Name of the docker-compose file')
         }
 
         stages {
             stage('Install Docker-Compose') {
               steps {
                 sh 'apk update && apk add docker-compose'
-                container('conftest') {
-                  sh 'conftest --version'
-                }
               }
             }
             stage('Git Checkout') {
@@ -55,21 +53,30 @@ data:
                   git poll: false, url: params.REPOSITORY
                 }
             }
+            stage('Switch Directory') {
+              when  {
+                expression { return params.COMPOSE_PATH != 'undefined' }
+              }
+              steps {
+                dir params.COMPOSE_PATH
+              }
+            }
             stage('Run Compose') {
                 steps {
                   sh 'ls -lh'
-                  sh 'docker-compose up -d'
-                  sh 'docker ps'
+                  sh "docker-compose -f ${params.COMPOSE_FILENAME} up -d"
                 }
             }
             stage('Check Healthy state') {
                 steps {
-                  sh 'echo "hallo"'
+                  sh 'docker ps'
                 }
             }
             stage('Run conftest') {
                 steps {
-                  sh 'echo "hallo"'
+                  container('conftest') {
+                    sh 'conftest --version'
+                  }
                 }
             }
             stage('Calculate final score') {
