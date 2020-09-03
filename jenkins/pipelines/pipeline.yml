@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pipeline-config
+  namespace: jenkins
+data:
+  compose-pipeline.dsl: |
+    pipelineJob('compose-pipeline') {
+        definition {
+            cps {
+                script('''
+    pipeline {
+      agent {
+        kubernetes {
+          cloud 'kubernetes'
+          defaultContainer 'docker'
+          yaml """
+    kind: Pod
+    spec:
+      containers:
+        - name: docker
+          image: docker:19.03.12-dind
+          securityContext:
+            privileged: true
+            """
+          }
+        }
+
+        options {
+          timeout(time: 30, unit: 'MINUTES')
+          timestamps()
+          buildDiscarder(logRotator(numToKeepStr: '1'))
+        }
+
+        parameters {
+          string(name: 'REPOSITORY', defaultValue: '', description: 'Url of a git repository')
+          string(name: 'COMPOSE_PATH', defaultValue: '', description: 'Path to the docker-compose file')
+        }
+
+        stages {
+            stage('Install Docker-Compose') {
+              steps {
+                sh 'apk update && apk add docker-compose'
+              }
+            }
+            stage('Git Checkout') {
+                steps {
+                  git poll: false, url: params.REPOSITORY
+                }
+            }
+            stage('Run Compose') {
+                steps {
+                  sh 'ls -lh'
+                  sh 'docker-compose up -d'
+                  sh 'docker ps'
+                }
+            }
+            stage('Check Healthy state') {
+                steps {
+                  sh 'echo "hallo"'
+                }
+            }
+            stage('Run conftest') {
+                steps {
+                  sh 'echo "hallo"'
+                }
+            }
+            stage('Calculate final score') {
+                steps {
+                  sh 'echo "hallo"'
+                }
+            }
+            stage('Send feedback') {
+                steps {
+                  sh 'echo "hallo"'
+                }
+            }
+        }
+    }
+                  '''.stripIndent())
+                sandbox()
+            }
+        }
+    }

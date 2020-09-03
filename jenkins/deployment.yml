@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      serviceAccountName: jenkins
+      initContainers:
+      - name: init-plugins
+        image: jenkins/jenkins:lts
+        imagePullPolicy: IfNotPresent
+        command: [/bin/bash, /var/jenkins_static_config/init-script.sh]
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        - name: jenkins-config
+          mountPath: /var/jenkins_static_config
+        - name: jenkins-ref
+          mountPath: /usr/share/jenkins/ref
+
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins:lts
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: jnlp
+          containerPort: 50000
+        env:
+        - name: DISCOVERY_SERVICE
+          value: http://localhost:50000
+        - name: UI_SERVICE
+          value: http://localhost:8080
+        - name: PLUGINS_FORCE_UPGRADE
+          value: "true"
+        - name: TRY_UPGRADE_IF_NO_MARKER
+          value: "true"
+        - name: CASC_JENKINS_CONFIG
+          value: /var/jenkins_casc.yml
+        - name: JENKINS_URL
+          value: https://localhost:9888
+        - name: JAVA_OPTS
+          value: |
+            -Djenkins.install.runSetupWizard=false
+            -Dpermissive-script-security.enabled=true
+            -Dorg.apache.commons.jelly.tags.fmt.timeZone=Europe/Berlin
+        volumeMounts:
+        - name: jenkins-config
+          mountPath: /var/jenkins_casc.yml
+          subPath: jenkins_casc.yml
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        - name: jenkins-ref
+          mountPath: /usr/share/jenkins/ref
+        - name: pipeline-config
+          mountPath: /var/jenkins_home/pipelines
+      volumes:
+      - name: jenkins-ref
+        emptyDir: {}
+      - name: jenkins-home
+        emptyDir: {}
+      - name: jenkins-config
+        configMap:
+          name: jenkins-config
+      - name: pipeline-config
+        configMap:
+          name: pipeline-config
