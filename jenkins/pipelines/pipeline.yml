@@ -22,6 +22,10 @@ data:
           image: docker:19.03.12-dind
           securityContext:
             privileged: true
+        - name: conftest
+          image: instrumenta/conftest:v0.20.0
+          tty: true
+          command: ['cat']
             """
           }
         }
@@ -41,6 +45,9 @@ data:
             stage('Install Docker-Compose') {
               steps {
                 sh 'apk update && apk add docker-compose'
+                container('conftest') {
+                  sh 'conftest --version'
+                }
               }
             }
             stage('Git Checkout') {
