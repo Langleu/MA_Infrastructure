@@ -20,6 +20,9 @@ kind create cluster --config cluster.yml
 
 ```
 kubectl apply -f nginx.yml
+kubectl apply -f jenkins/ns.yml
+kubectl apply -f jenkins/config
+kubectl apply -f jenkins/pipelines
 kubectl apply -f jenkins/
 ```
 
