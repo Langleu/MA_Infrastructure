@@ -16,7 +16,7 @@ spec:
       serviceAccountName: jenkins
       initContainers:
       - name: init-plugins
-        image: jenkins/jenkins:lts
+        image: jenkins/jenkins:2.235.5-lts
         imagePullPolicy: IfNotPresent
         command: [/bin/bash, /var/jenkins_static_config/init-script.sh]
         volumeMounts:
@@ -29,7 +29,7 @@ spec:
 
       containers:
       - name: jenkins
-        image: jenkins/jenkins:lts
+        image: jenkins/jenkins:2.235.5-lts
         ports:
         - name: http
           containerPort: 8080
@@ -53,6 +53,19 @@ spec:
             -Djenkins.install.runSetupWizard=false
             -Dpermissive-script-security.enabled=true
             -Dorg.apache.commons.jelly.tags.fmt.timeZone=Europe/Berlin
+            -Dhudson.model.DirectoryBrowserSupport.CSP=""
+            -Dhudson.security.csrf.DefaultCrumbIssuer.EXCLUDE_SESSION_ID=true
+            -Dhudson.security.csrf.GlobalCrumbIssuerConfiguration.DISABLE_CSRF_PROTECTION=true
+        livenessProbe:
+          httpGet:
+            path: /login
+            port: http
+          initialDelaySeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /login
+            port: http
+          initialDelaySeconds: 5
         volumeMounts:
         - name: jenkins-config
           mountPath: /var/jenkins_casc.yml

@@ -22,7 +22,7 @@ data:
       numExecutors: 0
       crumbIssuer:
         standard:
-          excludeClientIPFromCrumb: false
+          excludeClientIPFromCrumb: true
       remotingSecurity:
         enabled: false
     unclassified:
@@ -156,4 +156,3 @@ data:
     workflow-step-api:2.22
     workflow-support:3.5
     ws-cleanup:0.38
-
