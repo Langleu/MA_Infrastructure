@@ -23,7 +23,7 @@ data:
           securityContext:
             privileged: true
         - name: conftest
-          image: instrumenta/conftest:v0.20.0
+          image: instrumenta/conftest:v0.21.0
           tty: true
           command: ['cat']
             """

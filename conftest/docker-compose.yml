@@ -1,0 +1,25 @@
+# just an example as playground for conftest
+version: '2.1'
+services:
+  web:
+    build: .
+    image: 'something:as'
+    volumes:
+      - "asdasd"
+    ports:
+     - "5000:5000"
+    depends_on:
+    - redis
+    networks:
+    - 'asds'
+  redis:
+    image: "redis:2.3"
+    ports: ['']
+  redis2:
+    image: "redis:4.3"
+  redis3:
+    image: "redis:1.2"
+volumes:
+  asdsdas:
+networks:
+  asds:

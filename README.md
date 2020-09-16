@@ -29,6 +29,12 @@ kubectl apply -f jenkins/
 
 ## Example
 
+Pipeline has to run once to be able to use `buildWithParameters`
+
+```
+http://localhost:9888/job/compose-pipeline/build
+```
+
 POST request to trigger the pipeline:
 ```
 http://localhost:9888/job/compose-pipeline/buildWithParameters?REPOSITORY=https://github.com/langleu/MA_Crawler
