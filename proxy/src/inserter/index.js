@@ -37,6 +37,8 @@ const triggerBuild = async () => {
   delete params.score;
 
   const queryString = Object.keys(params).map(key => key.toUpperCase() + '=' + params[key]).join('&');
+  // TODO: catch error and retry or reque and delete from progress
+  // TODO: add logging
   await axios.post(`/job/compose-pipeline/buildWithParameters?${queryString}`, {});
 }
 

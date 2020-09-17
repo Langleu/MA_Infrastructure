@@ -4,40 +4,20 @@ metadata:
   name: pipeline-config
   namespace: jenkins
 data:
-  startup-pipeline.dsl: |
-    pipelineJob("Build compose pipeline for parameters") {
-        description('parameters are needed')
-        keepDependencies(false)
-        disabled(false)
-        triggers {
-          hudsonStartupTrigger {
-            nodeParameterName("master")
-            label("master")
-            quietPeriod("0")
-            runOnChoice("False")
-          }
-        }
-        
-        definition {
-          cps {
-            script('''
-    pipeline {
-      agent any
-      stages {
-        stage('Trigger Job') {
-          steps {
-            build job: 'compose-pipeline'
-          }
-        }
-      }
-    }
-    '''.stripIndent())
-    sandbox()
-          }
-        }
-      }
   compose-pipeline.dsl: |
     pipelineJob('compose-pipeline') {
+        parameters {
+          stringParam('CLONE', '', 'Url of a git repository for cloning (https)')
+          stringParam('PATH', 'undefined', 'Path to the docker-compose file')
+          stringParam('NAME', 'docker-compose.yml', 'Name of the docker-compose file')
+          stringParam('ID', '', 'Grakn database ID')
+          stringParam('RID', '', 'GitHub sha of docker-compose file')
+        }
+
+        logRotator {
+          numToKeep(100)
+        }
+
         definition {
             cps {
                 script('''
@@ -65,15 +45,6 @@ data:
         options {
           timeout(time: 30, unit: 'MINUTES')
           timestamps()
-          buildDiscarder(logRotator(numToKeepStr: '1'))
-        }
-
-        parameters {
-          string(name: 'CLONE', defaultValue: '', description: 'Url of a git repository for cloning (https)')
-          string(name: 'PATH', defaultValue: 'undefined', description: 'Path to the docker-compose file')
-          string(name: 'NAME', defaultValue: 'docker-compose.yml', description: 'Name of the docker-compose file')
-          string(name: 'ID', defaultValue: '', description: 'Grakn database ID')
-          string(name: 'RID', defaultValue: '', description: 'GitHub sha of docker-compose file')
         }
 
         stages {
@@ -84,21 +55,21 @@ data:
             }
             stage('Git Checkout') {
                 steps {
-                  git poll: false, url: params.REPOSITORY
+                  git poll: false, url: params.CLONE
                 }
             }
             stage('Switch Directory') {
               when  {
-                expression { return params.COMPOSE_PATH != 'undefined' }
+                expression { return params.PATH != 'undefined' }
               }
               steps {
-                dir params.COMPOSE_PATH
+                dir params.PATH
               }
             }
             stage('Run Compose') {
                 steps {
                   sh 'ls -lh'
-                  sh "docker-compose -f ${params.COMPOSE_FILENAME} up -d"
+                  sh "docker-compose -f ${params.NAME} up -d"
                 }
             }
             stage('Check Healthy state') {
