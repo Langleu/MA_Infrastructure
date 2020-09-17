@@ -4,6 +4,38 @@ metadata:
   name: pipeline-config
   namespace: jenkins
 data:
+  startup-pipeline.dsl: |
+    pipelineJob("Build compose pipeline for parameters") {
+        description('parameters are needed')
+        keepDependencies(false)
+        disabled(false)
+        triggers {
+          hudsonStartupTrigger {
+            nodeParameterName("master")
+            label("master")
+            quietPeriod("0")
+            runOnChoice("False")
+          }
+        }
+        
+        definition {
+          cps {
+            script('''
+    pipeline {
+      agent any
+      stages {
+        stage('Trigger Job') {
+          steps {
+            build job: 'compose-pipeline'
+          }
+        }
+      }
+    }
+    '''.stripIndent())
+    sandbox()
+          }
+        }
+      }
   compose-pipeline.dsl: |
     pipelineJob('compose-pipeline') {
         definition {
@@ -37,9 +69,11 @@ data:
         }
 
         parameters {
-          string(name: 'REPOSITORY', defaultValue: '', description: 'Url of a git repository')
-          string(name: 'COMPOSE_PATH', defaultValue: 'undefined', description: 'Path to the docker-compose file')
-          string(name: 'COMPOSE_FILENAME', defaultValue: 'docker-compose.yml', description: 'Name of the docker-compose file')
+          string(name: 'CLONE', defaultValue: '', description: 'Url of a git repository for cloning (https)')
+          string(name: 'PATH', defaultValue: 'undefined', description: 'Path to the docker-compose file')
+          string(name: 'NAME', defaultValue: 'docker-compose.yml', description: 'Name of the docker-compose file')
+          string(name: 'ID', defaultValue: '', description: 'Grakn database ID')
+          string(name: 'RID', defaultValue: '', description: 'GitHub sha of docker-compose file')
         }
 
         stages {

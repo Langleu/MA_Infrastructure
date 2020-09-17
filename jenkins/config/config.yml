@@ -19,7 +19,7 @@ data:
           name: "kubernetes"
           namespace: "jenkins"
       authorizationStrategy: unsecured
-      numExecutors: 0
+      numExecutors: 1
       crumbIssuer:
         standard:
           excludeClientIPFromCrumb: true
@@ -29,6 +29,7 @@ data:
       location:
         url: "http://jenkins:8080"
     jobs:
+      - file: /var/jenkins_home/pipelines/startup-pipeline.dsl
       - file: /var/jenkins_home/pipelines/compose-pipeline.dsl
   init-script.sh: |
     #!/bin/bash
@@ -140,6 +141,7 @@ data:
     sse-gateway:1.23
     ssh-credentials:1.18.1
     ssh-slaves:1.31.2
+    startup-trigger-plugin:2.9.3
     structs:1.20
     timestamper:1.11.5
     token-macro:2.12

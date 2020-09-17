@@ -1,0 +1,24 @@
+{
+  "name": "ma_proxy",
+  "version": "0.0.1",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon ."
+  },
+  "author": "Langleu",
+  "license": "MIT",
+  "dependencies": {
+    "@koa/router": "^9.4.0",
+    "axios": "^0.20.0",
+    "grakn-client": "^1.8.0",
+    "koa": "^2.13.0",
+    "koa-body": "^4.2.0",
+    "koa-combine-routers": "^4.0.2",
+    "lodash": "^4.17.20"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
+  }
+}
