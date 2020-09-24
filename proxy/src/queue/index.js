@@ -20,6 +20,8 @@ class Queue {
 
     let pos = this.storage.findIndex(hasId);
     this.storage.splice(pos, 1);
+
+    console.log('Entry has been deleted from the storage queue');
   }
 
   deleteProgressEntry(id) {
@@ -27,6 +29,8 @@ class Queue {
 
     let pos = this.progress.findIndex(hasId);
     this.progress.splice(pos, 1);
+
+    console.log('Entry has been deleted from the progress queue');
   }
 
   getRandom() {
@@ -35,6 +39,8 @@ class Queue {
 
     this.progress.push(obj);
     this.deleteStorageEntry(obj.id);
+
+    console.log('Returning random object');
     return obj;
   }
 

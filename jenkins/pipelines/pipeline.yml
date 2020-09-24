@@ -52,10 +52,6 @@ data:
         stages {
             stage('Install Docker-Compose') {
               steps {
-                container('conftest') {
-                  sh "echo 'test'"
-                  echo "test"
-                }
                 sh 'apk update && apk add docker-compose'
               }
             }

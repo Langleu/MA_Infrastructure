@@ -18,9 +18,13 @@ const fillQueue = async () => {
 
 const extractGitHubInfos = (url) => {
   const splits = url.split('/');
+  let path = splits.slice(6,splits.length).join('/');
+  if (!path.contains('/'))
+    path = 'undefined';
+  
   return {
     clone: `https://github.com/${splits[3]}/${splits[4]}.git`,
-    compose_path: splits.slice(6,splits.length).join('/')
+    compose_path: path
   }
 }
 

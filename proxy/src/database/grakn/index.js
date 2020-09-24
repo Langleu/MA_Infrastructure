@@ -18,8 +18,13 @@ class Grakn {
     this.client.close();
   }
 
-  updateDeployment() {
-    // TODO: write function to update executable and score
+  async updateDeployment(ID, RID, SCORE, EXECUTABLE) {
+    await this.openSession();
+    await this.writeQuery(`match $deployment isa deployment, has rid "${RID}", has score $score; delete $deployment has score $score;`);
+    await this.writeQuery(`match $deployment isa deployment, has rid "${RID}", has executable $executable; delete $deployment has executable $executable;`);
+    await this.writeQuery(`match $deployment isa deployment, has rid "${RID}"; insert $deployment has score ${SCORE};`);
+    await this.writeQuery(`match $deployment isa deployment, has rid "${RID}"; insert $deployment has executable ${EXECUTABLE};`);
+    await this.closeSession();
   }
 
   graknMapToJSON = (map) => {
@@ -44,6 +49,12 @@ class Grakn {
     });
     return results;
   };
+
+  async writeQuery(query) {
+    const writeTransaction = await this.session.transaction().write();
+    await writeTransaction.query(query);
+    await writeTransaction.commit();
+  }
 
   async runQuery(query) {
     const transaction = await this.session.transaction().read();
