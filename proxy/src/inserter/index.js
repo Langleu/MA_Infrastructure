@@ -20,7 +20,7 @@ const extractGitHubInfos = (url) => {
   const splits = url.split('/');
   return {
     clone: `https://github.com/${splits[3]}/${splits[4]}.git`,
-    path: splits.slice(6,splits.length).join('/')
+    compose_path: splits.slice(6,splits.length).join('/')
   }
 }
 

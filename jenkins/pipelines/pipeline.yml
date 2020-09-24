@@ -8,7 +8,7 @@ data:
     pipelineJob('compose-pipeline') {
         parameters {
           stringParam('CLONE', '', 'Url of a git repository for cloning (https)')
-          stringParam('PATH', 'undefined', 'Path to the docker-compose file')
+          stringParam('COMPOSE_PATH', 'undefined', 'Path to the docker-compose file')
           stringParam('NAME', 'docker-compose.yml', 'Name of the docker-compose file')
           stringParam('ID', '', 'Grakn database ID')
           stringParam('RID', '', 'GitHub sha of docker-compose file')
@@ -32,6 +32,8 @@ data:
       containers:
         - name: docker
           image: docker:19.03.12-dind
+          args:
+            - --storage-driver=overlay2
           securityContext:
             privileged: true
         - name: conftest
@@ -50,6 +52,10 @@ data:
         stages {
             stage('Install Docker-Compose') {
               steps {
+                container('conftest') {
+                  sh "echo 'test'"
+                  echo "test"
+                }
                 sh 'apk update && apk add docker-compose'
               }
             }
@@ -60,10 +66,10 @@ data:
             }
             stage('Switch Directory') {
               when  {
-                expression { return params.PATH != 'undefined' }
+                expression { return params.COMPOSE_PATH != 'undefined' }
               }
               steps {
-                dir params.PATH
+                dir params.COMPOSE_PATH
               }
             }
             stage('Run Compose') {
