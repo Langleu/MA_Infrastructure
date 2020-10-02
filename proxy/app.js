@@ -12,6 +12,6 @@ app.use(router());
 
 console.info(`The server was started on port: ${port}`);
 
-//require('./src/inserter/index');
+require('./src/inserter/index');
 
 module.exports = {server};

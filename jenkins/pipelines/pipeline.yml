@@ -12,6 +12,7 @@ data:
           stringParam('NAME', 'docker-compose.yml', 'Name of the docker-compose file')
           stringParam('ID', '', 'Grakn database ID')
           stringParam('RID', '', 'GitHub sha of docker-compose file')
+          stringParam('BASE_URL', '', 'URL of the proxy service')
         }
 
         logRotator {
@@ -71,7 +72,9 @@ data:
             stage('Run Compose') {
                 steps {
                   sh 'ls -lh'
-                  sh "docker-compose -f ${params.NAME} up -d"
+                  catchError {
+                    sh "docker-compose -f ${params.NAME} up -d"
+                  }
                 }
             }
             stage('Check Healthy state') {
@@ -83,6 +86,9 @@ data:
                 steps {
                   container('conftest') {
                     sh 'conftest --version'
+                    git poll: false, url: 'https://github.com/langleu/MA_Infrastructure'
+                    sh 'mv conftest/policy policy'
+                    sh "conftest test ${params.NAME}"
                   }
                 }
             }
@@ -96,6 +102,12 @@ data:
                   sh 'echo "hallo"'
                 }
             }
+        }
+        post {
+          always {
+            echo "${currentBuild.currentResult}"
+            httpRequesst contentType: "APPLICATION_JSON", httpMode: "POST", requestBody: JsonOutput.toJson(), url: "${BASE_URL}/v1/update"
+          }
         }
     }
                   '''.stripIndent())
