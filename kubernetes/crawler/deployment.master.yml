@@ -1,0 +1,39 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: master-crawler
+  namespace: crawler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: master-crawler
+  template:
+    metadata:
+      labels:
+        app: master-crawler
+    spec:
+      containers:
+      - name: master-crawler
+        image: langleu/ma_crawler:latest
+        ports:
+        - name: http
+          containerPort: 8000
+        env:
+        - name: PORT
+          value: 8000
+        - name: TYPE
+          value: 'master'
+        - name: GRAKNURI
+          value: grakn.database:48555
+        livenessProbe:
+          httpGet:
+            path: /v1/health
+            port: http
+          initialDelaySeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /v1/health
+            port: http
+          initialDelaySeconds: 10

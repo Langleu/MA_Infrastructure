@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grakn
+  namespace: database
+  labels:
+    app: grakn
+spec:
+  clusterIP: None
+  ports:
+  - port: 48555
+    name: gRPC
+  selector:
+    app: grakn

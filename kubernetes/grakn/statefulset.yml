@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: grakn
+  namespace: database
+  labels:
+    app: grakn
+spec:
+  serviceName: grakn
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grakn
+  template:
+    metadata:
+      labels:
+        app: grakn
+    spec:
+      terminationGracePeriodSeconds: 1800
+      containers:
+      - name: grakn
+        image: graknlabs/grakn:1.8.3
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 48555
+          name: gRPC
+        resources:
+          limits:
+            cpu: "3"
+            memory: 12Gi
+          requests:
+            cpu: "3"
+            memory: 12Gi
+        volumeMounts:
+        - name: grakn-data
+          mountPath: /server/db/
+      - name: init-schema # can't run as init container due database not being up
+        image: langleu/grakn-console:1.8.3
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: ADDRESS
+          value: 'grakn:48555'
+        - name: KEYSPACE
+          value: 'docker'
+        - name: FILE
+          value: './schema.sql'
+        volumeMounts:
+          - name: grakn-schema
+            mountPath: /schema.sql
+            subPath: schema.sql 
+  volumes:
+  - name: grakn-schema
+    configMap:
+      name: grakn-schema
+  volumeClaimTemplates:
+  - metadata:
+      name: grakn-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 80Gi

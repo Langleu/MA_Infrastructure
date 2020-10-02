@@ -1,6 +1,6 @@
-# Infrastructure as a Code Repository for Jenkins
+# Infrastructure as a Code Repository
 
-> contains files to setup a kind cluster with 2 worker nodes and ingress nginx to expose the Jenkins instance.
+> contains files to setup my master thesis project in a kubernetes cluster
 
 ## Getting Started
 
@@ -14,16 +14,18 @@
 
 ## Deployment
 
+`Kind cluster for testing purposes`
+
 ```
-kind create cluster --config cluster.yml
+kind create cluster --config kubernetes/cluster.yml
 ```
 
 ```
-kubectl apply -f nginx.yml
-kubectl apply -f jenkins/ns.yml
-kubectl apply -f jenkins/config
-kubectl apply -f jenkins/pipelines
-kubectl apply -f jenkins/
+kubectl apply -f kubernetes/nginx.yml
+kubectl apply -f kubernetes/jenkins/ns.yml
+kubectl apply -f kubernetes/jenkins/config
+kubectl apply -f kubernetes/jenkins/pipelines
+kubectl apply -f kubernetes/jenkins/
 ```
 
 
