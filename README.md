@@ -41,3 +41,8 @@ POST request to trigger the pipeline:
 ```
 http://localhost:9888/job/compose-pipeline/buildWithParameters?REPOSITORY=https://github.com/langleu/MA_Crawler
 ```
+
+clair/klar usage - dry run outside of CI:
+```
+kubectl run -i --tty klar --image=langleu/klar --env=CLAIR_ADDR=clair-clair:6060 --env=JSON_OUTPUT=true -- node:10
+```

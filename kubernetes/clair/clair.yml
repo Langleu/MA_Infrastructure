@@ -1,0 +1,207 @@
+---
+# Source: clair/templates/clair/clair-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clair-clair
+  namespace: clair
+data:
+  config.yaml: |-
+      clair:
+        database:
+          # Database driver
+          type: pgsql
+          options:
+            # PostgreSQL Connection string
+            # https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
+            source: "postgres://postgres:clair@clair-postgresql:5432/postgres?sslmode=disable"
+
+            # Number of elements kept in the cache
+            # Values unlikely to change (e.g. namespaces) are cached in order to save prevent needless roundtrips to the database.
+            cachesize: 16384
+
+            # 32-bit URL-safe base64 key used to encrypt pagination tokens
+            # If one is not provided, it will be generated.
+            # Multiple clair instances in the same cluster need the same value.
+            paginationkey:
+
+            # Maximum number of open connections allowed to database
+            # If unspecified or <= 0 then no limit is enforced in Clair
+            maxopenconnections: 10
+
+        api:
+          # v3 grpc/RESTful API server address
+          addr: "0.0.0.0:6060"
+
+          # Health server address
+          # This is an unencrypted endpoint useful for load balancers to check to healthiness of the clair server.
+          healthaddr: "0.0.0.0:6061"
+
+          # Deadline before an API request will respond with a 503
+          timeout: 900s
+
+          # Optional PKI configuration
+          # If you want to easily generate client certificates and CAs, try the following projects:
+          # https://github.com/coreos/etcd-ca
+          # https://github.com/cloudflare/cfssl
+          servername:
+          cafile:
+          keyfile:
+          certfile:
+
+        updater:
+          # Frequency the database will be updated with vulnerabilities from the default data sources
+          # The value 0 disables the updater entirely.
+          interval: 2h
+          enabledupdaters:
+            - debian
+            - ubuntu
+            - rhel
+            - oracle
+            - alpine
+            - suse
+
+        notifier:
+          # Number of attempts before the notification is marked as failed to be sent
+          attempts: 3
+
+          # Duration before a failed notification is retried
+          renotifyinterval: 2h
+
+          http:
+            # Optional endpoint that will receive notifications via POST requests
+            endpoint:
+
+            # Optional PKI configuration
+            # If you want to easily generate client certificates and CAs, try the following projects:
+            # https://github.com/cloudflare/cfssl
+            # https://github.com/coreos/etcd-ca
+            servername:
+            cafile:
+            keyfile:
+            certfile:
+
+            # Optional HTTP Proxy: must be a valid URL (including the scheme).
+            proxy:
+---
+# Source: clair/templates/clair/clair-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: clair-clair
+  namespace: clair
+spec:
+  type: NodePort
+  selector:
+    app: clair-clair
+  ports:
+  - name: clair-api
+    nodePort: 32159
+    port: 6060
+    protocol: TCP
+    targetPort: 6060
+  - name: clair-health
+    nodePort: 30273
+    port: 6061
+    protocol: TCP
+    targetPort: 6061
+---
+# Source: clair/templates/postgres/postgres-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: clair-postgresql
+  namespace: clair
+spec:
+  type: ClusterIP
+  selector:
+    run: postgres
+  ports:
+  - port: 5432
+    protocol: TCP
+---
+# Source: clair/templates/clair/clair-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clair
+  namespace: clair
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clair-clair
+  template:
+    metadata:
+      labels:
+        app: clair-clair
+    spec:
+      containers:
+      - name: clair
+        args:
+        - -log-level=info
+        image: quay.io/coreos/clair:latest
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 6061
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          initialDelaySeconds: 10
+          timeoutSeconds: 1
+        ports:
+        - containerPort: 6060
+          name: clair-api
+          protocol: TCP
+        - containerPort: 6061
+          name: clair-health
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          httpGet:
+            path: /health
+            port: 6061
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 2000Mi
+          requests:
+            cpu: 500m
+            memory: 500Mi
+        volumeMounts:
+        - mountPath: /etc/clair
+          name: clair-config
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: clair-clair
+        name: clair-config
+---
+# Source: clair/templates/postgres/postgres-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: clair
+spec:
+  selector:
+    matchLabels:
+      run: postgres
+  template:
+    metadata:
+      labels:
+        run: postgres
+    spec:
+      containers:
+      - image: postgres:9.6
+        name: postgres
+        env:
+        - name: POSTGRES_PASSWORD
+          value: clair
