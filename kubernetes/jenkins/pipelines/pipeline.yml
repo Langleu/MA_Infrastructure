@@ -21,7 +21,21 @@ data:
 
         definition {
             cps {
-                script('''
+                script('''import groovy.json.JsonSlurper
+    @NonCPS
+    def jsonParse(text) {
+      return new groovy.json.JsonSlurperClassic().parseText(text);
+    }
+    def generateScore() {
+      def jsonSlurper = new JsonSlurper()
+      def conftest_json = jsonSlurper.parseText(CONFTEST_RESULT)
+      
+      TRIVY.each {
+        println "Item: $it" // `it` is an implicit parameter corresponding to the current element
+      }
+
+      println conftest_json
+    }
     pipeline {
       agent {
         kubernetes {
@@ -41,6 +55,10 @@ data:
           image: instrumenta/conftest:v0.21.0
           tty: true
           command: ['cat']
+        - name: trivy
+          image: langleu/trivy:0.11.0
+          tty: true
+          command: ['cat']
             """
           }
         }
@@ -53,7 +71,7 @@ data:
         stages {
             stage('Install Docker-Compose') {
               steps {
-                sh 'apk update && apk add docker-compose'
+                sh 'apk update && apk add docker-compose curl bash'
               }
             }
             stage('Git Checkout') {
@@ -71,9 +89,10 @@ data:
             }
             stage('Run Compose') {
                 steps {
-                  sh 'ls -lh'
                   catchError {
-                    sh "docker-compose -f ${params.NAME} up -d"
+                    sh "docker run -d -p 80:80 nginx:latest"
+                    sh "docker run -d node:10"
+                    //sh "docker-compose -f ${params.NAME} up -d"
                   }
                 }
             }
@@ -84,17 +103,57 @@ data:
             }
             stage('Run conftest') {
                 steps {
+                  sh 'mkdir policy'
+                  sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/conftest/policy/deny.rego > policy/deny.rego'
                   container('conftest') {
-                    sh 'conftest --version'
-                    git poll: false, url: 'https://github.com/langleu/MA_Infrastructure'
-                    sh 'mv conftest/policy policy'
-                    sh "conftest test ${params.NAME}"
+                    script {
+                      CONFTEST_RESULT = sh(script: "conftest --no-color test --output json ${params.NAME} || true", returnStdout: true).trim()
+                    }
                   }
                 }
             }
+            stage('Run vulnerability scan') {
+              steps {
+                script {
+                  IMAGES_STRING = sh(script: "docker ps -a --format '{{json .Image}}'", returnStdout: true).trim()
+                }
+                sh """#!/bin/bash
+                    images_string="${IMAGES_STRING}"
+                    readarray -t images <<<"\\${images_string}"
+
+                    for image in "\\${images[@]}"
+                    do
+                      docker save "\\${image}" -o \\${image}.tar || true
+                    done
+                """
+                container('trivy') {
+                  sh """#!/bin/bash
+                    images_string="${IMAGES_STRING}"
+                    readarray -t images <<<"\\${images_string}"
+
+                    echo "[\n" > trivy.json
+
+                    for image in "\\${images[@]}"
+                    do
+                      trivy image --light --no-progress --severity MEDIUM,HIGH,CRITICAL --exit-code 0 -f json -o trivy_temp.json --input \\${image}.tar
+                      cat trivy_temp.json >> trivy.json
+                      echo "," >> trivy.json
+                      rm -rf \\${image}.tar
+                    done
+
+                    echo "\n]" >> trivy.json
+
+                  """
+                  script {
+                    TRIVY = jsonParse(readFile('trivy.json'))
+                  }
+                }
+              }
+            }
             stage('Calculate final score') {
                 steps {
-                  sh 'echo "hallo"'
+                  echo "${CONFTEST_RESULT}"
+                  echo "${TRIVY}"
                 }
             }
             stage('Send feedback') {
@@ -106,7 +165,7 @@ data:
         post {
           always {
             echo "${currentBuild.currentResult}"
-            httpRequesst contentType: "APPLICATION_JSON", httpMode: "POST", requestBody: JsonOutput.toJson(), url: "${BASE_URL}/v1/update"
+            //httpRequesst contentType: "APPLICATION_JSON", httpMode: "POST", requestBody: JsonOutput.toJson(), url: "${BASE_URL}/v1/update"
           }
         }
     }
