@@ -21,20 +21,36 @@ data:
 
         definition {
             cps {
-                script('''import groovy.json.JsonSlurper
-    @NonCPS
-    def jsonParse(text) {
-      return new groovy.json.JsonSlurperClassic().parseText(text);
+                script('''
+    dict = [:]
+    score = [:]
+    def processVuln() {
+      def arr = TRIVY.removeAll([null])
+      if (arr) {
+        dict['total'] = 0
+        dict['score'] = 10
+        return true
+      }
+      TRIVY.each { ele ->
+          if (!dict['total']) {
+            dict['total'] = ele.vulnerabilities.size()
+          } else {
+            dict['total'] += ele.vulnerabilities.size()
+          }
+          if (!dict['score']) {
+            dict['score'] = 0
+          }
+          ele.vulnerabilities.each { vuln ->
+            if (vuln.V3Score) {
+                dict['score'] += vuln.V3Score
+            }
+          }
+      }
+      dict['score'] = (dict['score'] / dict['total']).round(1)
     }
     def generateScore() {
-      def jsonSlurper = new JsonSlurper()
-      def conftest_json = jsonSlurper.parseText(CONFTEST_RESULT)
-      
-      TRIVY.each {
-        println "Item: $it" // `it` is an implicit parameter corresponding to the current element
-      }
-
-      println conftest_json
+      println dict
+      println CONFTEST_RESULT
     }
     pipeline {
       agent {
@@ -114,6 +130,7 @@ data:
             }
             stage('Run vulnerability scan') {
               steps {
+                sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/kubernetes/jenkins/pipelines/res.tpl > result.tpl'
                 script {
                   IMAGES_STRING = sh(script: "docker ps -a --format '{{json .Image}}'", returnStdout: true).trim()
                 }
@@ -135,7 +152,7 @@ data:
 
                     for image in "\\${images[@]}"
                     do
-                      trivy image --light --no-progress --severity MEDIUM,HIGH,CRITICAL --exit-code 0 -f json -o trivy_temp.json --input \\${image}.tar
+                      trivy image --no-progress --exit-code 0 --format template --template "@result.tpl" -o trivy_temp.json --input \\${image}.tar
                       cat trivy_temp.json >> trivy.json
                       echo "," >> trivy.json
                       rm -rf \\${image}.tar
@@ -145,15 +162,15 @@ data:
 
                   """
                   script {
-                    TRIVY = jsonParse(readFile('trivy.json'))
+                    TRIVY = readJSON file: 'trivy.json'
                   }
                 }
               }
             }
             stage('Calculate final score') {
                 steps {
-                  echo "${CONFTEST_RESULT}"
-                  echo "${TRIVY}"
+                  processVuln()
+                  generateScore()
                 }
             }
             stage('Send feedback') {
