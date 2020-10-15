@@ -21,7 +21,7 @@ data:
 
         definition {
             cps {
-                script('''
+                script('''import groovy.json.JsonOutput
     dict = [:]
     score = [:]
     def processVuln() {
@@ -49,10 +49,29 @@ data:
       dict['score'] = (dict['score'] / dict['total']).round(1)
     }
     def generateScore() {
-      println dict
-      println CONFTEST_RESULT
-      println EXECUTABLE
-      println FILE_LENGTH
+      def vulnScore = (10 - dict.score) * 3.3
+      def confTotal = CONFTEST_RESULT.successes + CONFTEST_RESULT.warnings.size() + CONFTEST_RESULT.failures.size()
+      def confNoramlized = ((confTotal.sum() - CONFTEST_RESULT.warnings.size() - CONFTEST_RESULT.failures.size()) / confTotal.sum()) * 10
+      def confScore = confNoramlized * 3.3
+      def excScore = 5
+
+      if (!EXECUTABLE) {
+        excScore = 0
+      }
+
+      FILE_LENGTH = Integer.parseInt(FILE_LENGTH)
+
+      if (FILE_LENGTH > 300) {
+        FILE_LENGTH = 300
+      }
+      
+      fileNormalized = (FILE_LENGTH / 300) * 5
+      def extraScore = (excScore + fileNormalized) * 3.3
+      def totalScore = vulnScore + confScore + extraScore
+
+      def result = [score: totalScore.round(2), executable: EXECUTABLE, v3score: dict.score]
+
+      return result
     }
     pipeline {
       agent {
@@ -133,7 +152,7 @@ data:
                   else
                     echo true
                   fi
-                  """, returnStdout: true)
+                  """, returnStdout: true).trim()
                 }
               }
             }
@@ -150,7 +169,7 @@ data:
                   sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/conftest/policy/deny.rego > policy/deny.rego'
                   container('conftest') {
                     script {
-                      CONFTEST_RESULT = sh(script: "conftest --no-color test --output json ${params.NAME} || true", returnStdout: true).trim()
+                      CONFTEST_RESULT = readJSON text: sh(script: "conftest --no-color test --output json ${params.NAME} || true", returnStdout: true).trim()
                     }
                   }
                 }
@@ -228,19 +247,16 @@ data:
             stage('Calculate final score') {
                 steps {
                   processVuln()
-                  generateScore()
-                }
-            }
-            stage('Send feedback') {
-                steps {
-                  sh 'echo "hallo"'
+                  script {
+                    result = generateScore()
+                  }
                 }
             }
         }
         post {
           always {
-            echo "${currentBuild.currentResult}"
-            //httpRequesst contentType: "APPLICATION_JSON", httpMode: "POST", requestBody: JsonOutput.toJson(), url: "${BASE_URL}/v1/update"
+            println JsonOutput.toJson(result)
+            //httpRequesst contentType: "APPLICATION_JSON", httpMode: "POST", requestBody: JsonOutput.toJson(result), url: "${BASE_URL}/v1/update"
           }
         }
     }
