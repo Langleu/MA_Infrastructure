@@ -51,6 +51,7 @@ data:
     def generateScore() {
       println dict
       println CONFTEST_RESULT
+      println EXECUTABLE
     }
     pipeline {
       agent {
@@ -105,17 +106,33 @@ data:
             }
             stage('Run Compose') {
                 steps {
-                  catchError {
+                 script {
+                   EXECUTABLE = true
+                  try {
                     sh "docker run -d -p 80:80 nginx:latest"
                     sh "docker run -d node:10"
                     //sh "docker-compose -f ${params.NAME} up -d"
+                  } catch(err) {
+                      EXECUTABLE = false
+                    }
                   }
                 }
             }
             stage('Check Healthy state') {
-                steps {
-                  sh 'docker ps'
+              when  {
+                expression { return EXECUTABLE }
+              }
+              steps {
+                script {
+                EXECUTABLE = sh (script: """
+                  sleep 30s
+                  if [[ \\$(docker ps -a | grep -v "CONTAINER ID" | grep -v "Exited (0)" | grep -v "Restarting (0)" | grep -v "Created" | grep -v "Up" | wc -l) -gt 0 ]]
+                  then
+                    echo false
+                  fi
+                  """, returnStdout: true)
                 }
+              }
             }
             stage('Run conftest') {
                 steps {
