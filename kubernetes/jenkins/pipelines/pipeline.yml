@@ -52,6 +52,7 @@ data:
       println dict
       println CONFTEST_RESULT
       println EXECUTABLE
+      println FILE_LENGTH
     }
     pipeline {
       agent {
@@ -129,8 +130,17 @@ data:
                   if [[ \\$(docker ps -a | grep -v "CONTAINER ID" | grep -v "Exited (0)" | grep -v "Restarting (0)" | grep -v "Created" | grep -v "Up" | wc -l) -gt 0 ]]
                   then
                     echo false
+                  else
+                    echo true
                   fi
                   """, returnStdout: true)
+                }
+              }
+            }
+            stage('Read file length') {
+              steps {
+                script {
+                  FILE_LENGTH = sh(script: "cat ${params.NAME} | wc -l", returnStdout: true).trim()
                 }
               }
             }
@@ -145,7 +155,38 @@ data:
                   }
                 }
             }
+            stage('Run vulnerability scan - not executable') {
+              when {
+                expression { return EXECUTABLE == false }
+              }
+              steps {
+                sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/kubernetes/jenkins/pipelines/res.tpl > result.tpl'
+                container('trivy') {
+                  sh (script: """#!/bin/bash
+                  arr=\\$(cat docker-compose.yml | grep image)
+                  readarray -t arr <<<"\\${arr//image: /}"
+
+                  echo "[\n" > trivy.json
+
+                  for image in "\\${arr[@]}"
+                  do
+                    trivy image --no-progress --exit-code 0 --format template --template "@result.tpl" -o trivy_temp.json \\${image}
+                      cat trivy_temp.json >> trivy.json
+                      echo "," >> trivy.json
+                  done
+
+                  echo "\n]" >> trivy.json
+                  """, returnStatus: false)
+                  script {
+                    TRIVY = readJSON file: 'trivy.json'
+                  }
+                }
+              }
+            }
             stage('Run vulnerability scan') {
+              when {
+                expression { return EXECUTABLE }
+              }
               steps {
                 sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/kubernetes/jenkins/pipelines/res.tpl > result.tpl'
                 script {
