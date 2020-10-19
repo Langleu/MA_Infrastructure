@@ -6,15 +6,15 @@ const grakn = new Grakn('docker');
 const Queue = require('./../../queue/index');
 
 router.post('/', async (ctx, next) => {
-  const { ID, RID, SCORE, EXECUTABLE } = ctx.request.body;
+  const { id, rid, score, executable } = ctx.request.body;
 
-  await grakn.updateDeployment(ID, RID, SCORE, EXECUTABLE);
+  await grakn.updateDeployment(id, rid, score, executable);
 
-  Queue.deleteProgressEntry(ID);
+  Queue.deleteProgressEntry(id);
   
   ctx.body = {
     status: 200,
-    msg: `${RID} has been updated with score ${SCORE}`
+    msg: `${rid} has been updated with score ${score}`
   };
 });
 

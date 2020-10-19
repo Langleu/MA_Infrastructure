@@ -69,7 +69,7 @@ data:
       def extraScore = (excScore + fileNormalized) * 3.3
       def totalScore = vulnScore + confScore + extraScore
 
-      def result = [score: totalScore.round(2), executable: EXECUTABLE, v3score: dict.score]
+      def result = [score: totalScore.round(2), executable: EXECUTABLE, v3score: dict.score, id: ID, rid, RID]
 
       return result
     }
