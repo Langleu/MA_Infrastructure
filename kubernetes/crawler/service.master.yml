@@ -9,7 +9,24 @@ metadata:
 spec:
   clusterIP: None
   ports:
+  - protocol: TCP
+    port: 8000
+    name: ws
+  selector:
+    app: master-crawler
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: master-crawler-pwd
+  namespace: crawler
+  labels:
+    app: master-crawler
+spec:
+  type: NodePort
+  ports:
   - port: 8000
     name: http
+    nodePort: 30800
   selector:
     app: master-crawler
