@@ -23,3 +23,16 @@ spec:
   - name: jnlp
     port: 50000
     targetPort: jnlp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: jenkins
+spec:
+  type: NodePort
+  selector:
+    app: jenkins
+  ports:
+  - port: 8080
+    nodePort: 30888

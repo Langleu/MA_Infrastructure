@@ -10,6 +10,22 @@ spec:
   clusterIP: None
   ports:
   - port: 48555
-    name: gRPC
+    name: grpc
+  selector:
+    app: grakn
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grakn-pwd
+  namespace: database
+  labels:
+    app: grakn
+spec:
+  type: NodePort
+  ports:
+  - port: 48555
+    name: grpc
+    nodePort: 30485
   selector:
     app: grakn

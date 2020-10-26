@@ -22,21 +22,24 @@ spec:
       - name: grakn
         image: graknlabs/grakn:1.8.3
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 0
         ports:
         - containerPort: 48555
-          name: gRPC
+          name: grpc
         resources:
           limits:
-            cpu: "3"
+            cpu: "4"
             memory: 12Gi
           requests:
-            cpu: "3"
+            cpu: "4"
             memory: 12Gi
         volumeMounts:
         - name: grakn-data
-          mountPath: /server/db/
+          mountPath: /grakn-core-all-linux/server/db/
       - name: init-schema # can't run as init container due database not being up
-        image: langleu/grakn-console:1.8.3
+        image: langleu/grakn-console:1.8.3-test
         imagePullPolicy: IfNotPresent
         env:
         - name: ADDRESS
@@ -44,20 +47,20 @@ spec:
         - name: KEYSPACE
           value: 'docker'
         - name: FILE
-          value: './schema.sql'
+          value: '/schema.gql'
         volumeMounts:
           - name: grakn-schema
-            mountPath: /schema.sql
-            subPath: schema.sql 
-  volumes:
-  - name: grakn-schema
-    configMap:
-      name: grakn-schema
-  volumeClaimTemplates:
-  - metadata:
-      name: grakn-data
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 80Gi
+            mountPath: /schema.gql
+            subPath: schema.gql 
+      tolerations:
+        - key: "db"
+          value: "true"
+          effect: "NoSchedule"
+      volumes:
+      - name: grakn-schema
+        configMap:
+          name: grakn-schema
+      - name: grakn-data
+        hostPath: 
+          path: /var/local/grakn
+          type: DirectoryOrCreate

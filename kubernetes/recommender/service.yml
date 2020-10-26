@@ -7,9 +7,10 @@ metadata:
   labels:
     app: recommender
 spec:
-  clusterIP: None
+  type: NodePort
   ports:
   - port: 8088
     name: http
+    nodePort: 30808
   selector:
     app: recommender
