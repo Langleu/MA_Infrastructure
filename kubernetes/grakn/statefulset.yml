@@ -22,6 +22,11 @@ spec:
       - name: grakn
         image: graknlabs/grakn:1.8.3
         imagePullPolicy: IfNotPresent
+        env:
+        - name: SERVER_JAVAOPTS
+          value: "-Xmx7G"
+        - name: STORAGE_JAVAOPTS
+          value: "-Xmx7G"
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 0
@@ -30,11 +35,11 @@ spec:
           name: grpc
         resources:
           limits:
-            cpu: "4"
-            memory: 12Gi
+            cpu: "6"
+            memory: 14Gi
           requests:
-            cpu: "4"
-            memory: 12Gi
+            cpu: "6"
+            memory: 14Gi
         volumeMounts:
         - name: grakn-data
           mountPath: /grakn-core-all-linux/server/db/
