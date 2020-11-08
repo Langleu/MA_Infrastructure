@@ -11,7 +11,7 @@ class Grakn {
   async openSession () {
     this.client = new GraknClient(process.env.GRAKNURI || 'localhost:48555');
     this.session = await this.client.session(this.keyspace);
-  };
+  }
 
   async closeSession() {
     await this.session.close();
@@ -19,12 +19,11 @@ class Grakn {
   }
 
   async updateDeployment(ID, RID, SCORE, EXECUTABLE) {
-    await this.openSession();
+    console.log(`${RID} - ${SCORE} - ${EXECUTABLE}`);
     await this.writeQuery(`match $deployment isa deployment, has rid "${RID}", has score $score; delete $deployment has score $score;`);
     await this.writeQuery(`match $deployment isa deployment, has rid "${RID}", has executable $executable; delete $deployment has executable $executable;`);
     await this.writeQuery(`match $deployment isa deployment, has rid "${RID}"; insert $deployment has score ${SCORE};`);
     await this.writeQuery(`match $deployment isa deployment, has rid "${RID}"; insert $deployment has executable ${EXECUTABLE};`);
-    await this.closeSession();
   }
 
   graknMapToJSON = (map) => {
@@ -53,7 +52,11 @@ class Grakn {
   async writeQuery(query) {
     const writeTransaction = await this.session.transaction().write();
     await writeTransaction.query(query);
-    await writeTransaction.commit();
+    try {
+      await writeTransaction.commit();
+    } catch (e) {
+      
+    }
   }
 
   async runQuery(query) {

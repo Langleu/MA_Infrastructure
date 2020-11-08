@@ -20,13 +20,13 @@ spec:
       terminationGracePeriodSeconds: 1800
       containers:
       - name: grakn
-        image: graknlabs/grakn:1.8.3
+        image: langleu/grakn:latest
         imagePullPolicy: IfNotPresent
         env:
         - name: SERVER_JAVAOPTS
-          value: "-Xmx7G"
+          value: "-Xmx10G"
         - name: STORAGE_JAVAOPTS
-          value: "-Xmx7G"
+          value: "-Xmx5G"
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 0
@@ -35,11 +35,11 @@ spec:
           name: grpc
         resources:
           limits:
-            cpu: "6"
-            memory: 14Gi
+            cpu: "7"
+            memory: 15Gi
           requests:
-            cpu: "6"
-            memory: 14Gi
+            cpu: "7"
+            memory: 15Gi
         volumeMounts:
         - name: grakn-data
           mountPath: /grakn-core-all-linux/server/db/

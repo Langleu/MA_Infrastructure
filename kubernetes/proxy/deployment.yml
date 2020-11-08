@@ -17,11 +17,14 @@ spec:
       containers:
       - name: proxy
         image: langleu/ma_proxy:latest
+        imagePullPolicy: Always
         env:
           - name: GRAKNURI
             value: 'grakn.database:48555'
           - name: JENKINS_URL
-            value: 'jenkins.jenkins:8080'
+            value: 'http://jenkins.jenkins:8080'
+          - name: SELF
+            value: 'http://proxy.proxy:9889'
         ports:
         - name: http
           containerPort: 9889

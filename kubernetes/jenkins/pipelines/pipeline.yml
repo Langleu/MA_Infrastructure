@@ -8,7 +8,7 @@ data:
     pipelineJob('compose-pipeline') {
         parameters {
           stringParam('CLONE', '', 'Url of a git repository for cloning (https)')
-          stringParam('COMPOSE_PATH', 'undefined', 'Path to the docker-compose file')
+          stringParam('COMPOSE_PATH', '', 'Path to the docker-compose file')
           stringParam('NAME', 'docker-compose.yml', 'Name of the docker-compose file')
           stringParam('ID', '', 'Grakn database ID')
           stringParam('RID', '', 'GitHub sha of docker-compose file')
@@ -27,8 +27,8 @@ data:
     def processVuln() {
       def arr = TRIVY.removeAll([null])
       if (arr) {
-        dict['total'] = 0
-        dict['score'] = 10
+        dict['total'] = 0.0
+        dict['score'] = 10.0
         return true
       }
       TRIVY.each { ele ->
@@ -38,7 +38,7 @@ data:
             dict['total'] += ele.vulnerabilities.size()
           }
           if (!dict['score']) {
-            dict['score'] = 0
+            dict['score'] = 0.0
           }
           ele.vulnerabilities.each { vuln ->
             if (vuln.V3Score) {
@@ -46,17 +46,21 @@ data:
             }
           }
       }
-      dict['score'] = (dict['score'] / dict['total']).round(1)
+      if (dict['total'] == 0) {
+        dict['score'] = 0;
+      } else {
+        dict['score'] = (dict['score'] / dict['total']).round(1)
+      }
     }
     def generateScore() {
-      def vulnScore = (10 - dict.score) * 3.3
+      def vulnScore = (10.0 - dict.score) * 3.3
       def confTotal = CONFTEST_RESULT.successes + CONFTEST_RESULT.warnings.size() + CONFTEST_RESULT.failures.size()
       def confNoramlized = ((confTotal.sum() - CONFTEST_RESULT.warnings.size() - CONFTEST_RESULT.failures.size()) / confTotal.sum()) * 10
       def confScore = confNoramlized * 3.3
-      def excScore = 5
+      def excScore = 5.0
 
       if (!EXECUTABLE) {
-        excScore = 0
+        excScore = 0.0
       }
 
       FILE_LENGTH = Integer.parseInt(FILE_LENGTH)
@@ -65,11 +69,11 @@ data:
         FILE_LENGTH = 300
       }
       
-      fileNormalized = (FILE_LENGTH / 300) * 5
+      fileNormalized = (FILE_LENGTH / 300) * 5.0
       def extraScore = (excScore + fileNormalized) * 3.3
-      def totalScore = vulnScore + confScore + extraScore
+      double totalScore = vulnScore + confScore + extraScore
 
-      def result = [score: totalScore.round(2), executable: EXECUTABLE, v3score: dict.score, id: ID, rid, RID]
+      def result = [score: totalScore.round(2), executable: EXECUTABLE, v3score: dict.score, id: ID, rid: RID]
 
       return result
     }
@@ -111,27 +115,26 @@ data:
                 sh 'apk update && apk add docker-compose curl bash'
               }
             }
+            stage('Docker login') {
+              steps {
+                withCredentials([usernamePassword(credentialsId: 'docker_creds', usernameVariable: 'USERNAME', passwordVariable: 'TOKEN')]) {
+                  sh 'docker login --username \$USERNAME --password \$TOKEN'
+                }
+              }
+            }
             stage('Git Checkout') {
                 steps {
                   git poll: false, url: params.CLONE
                 }
-            }
-            stage('Switch Directory') {
-              when  {
-                expression { return params.COMPOSE_PATH != 'undefined' }
-              }
-              steps {
-                dir params.COMPOSE_PATH
-              }
             }
             stage('Run Compose') {
                 steps {
                  script {
                    EXECUTABLE = true
                   try {
-                    sh "docker run -d -p 80:80 nginx:latest"
-                    sh "docker run -d node:10"
-                    //sh "docker-compose -f ${params.NAME} up -d"
+                    dir(params.COMPOSE_PATH) {
+                      sh "docker-compose -f ${params.NAME} up -d"
+                    }
                   } catch(err) {
                       EXECUTABLE = false
                     }
@@ -159,17 +162,21 @@ data:
             stage('Read file length') {
               steps {
                 script {
-                  FILE_LENGTH = sh(script: "cat ${params.NAME} | wc -l", returnStdout: true).trim()
+                  dir(params.COMPOSE_PATH) {
+                    FILE_LENGTH = sh(script: "cat ${params.NAME} | wc -l", returnStdout: true).trim()
+                  }
                 }
               }
             }
             stage('Run conftest') {
                 steps {
-                  sh 'mkdir policy'
-                  sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/conftest/policy/deny.rego > policy/deny.rego'
-                  container('conftest') {
-                    script {
-                      CONFTEST_RESULT = readJSON text: sh(script: "conftest --no-color test --output json ${params.NAME} || true", returnStdout: true).trim()
+                  dir(params.COMPOSE_PATH) {
+                    sh 'mkdir policy'
+                    sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/conftest/policy/deny.rego > policy/deny.rego'
+                    container('conftest') {
+                      script {
+                        CONFTEST_RESULT = readJSON text: sh(script: "conftest --no-color test --output json ${params.NAME} || true", returnStdout: true).trim()
+                      }
                     }
                   }
                 }
@@ -179,25 +186,27 @@ data:
                 expression { return EXECUTABLE == false }
               }
               steps {
-                sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/kubernetes/jenkins/pipelines/res.tpl > result.tpl'
-                container('trivy') {
-                  sh (script: """#!/bin/bash
-                  arr=\\$(cat docker-compose.yml | grep image)
-                  readarray -t arr <<<"\\${arr//image: /}"
+                dir(params.COMPOSE_PATH) {
+                  sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/kubernetes/jenkins/pipelines/res.tpl > result.tpl'
+                  container('trivy') {
+                    sh (script: """#!/bin/bash
+                    arr=\\$(cat ${params.NAME} | grep image)
+                    readarray -t arr <<<"\\${arr//image: /}"
 
-                  echo "[\n" > trivy.json
+                    echo "[\n" > trivy.json
 
-                  for image in "\\${arr[@]}"
-                  do
-                    trivy image --no-progress --exit-code 0 --format template --template "@result.tpl" -o trivy_temp.json \\${image}
-                      cat trivy_temp.json >> trivy.json
-                      echo "," >> trivy.json
-                  done
+                    for image in "\\${arr[@]}"
+                    do
+                      trivy image --no-progress --exit-code 0 --format template --template "@result.tpl" -o trivy_temp.json \\${image}
+                        cat trivy_temp.json >> trivy.json
+                        echo "," >> trivy.json
+                    done
 
-                  echo "\n]" >> trivy.json
-                  """, returnStatus: false)
-                  script {
-                    TRIVY = readJSON file: 'trivy.json'
+                    echo "\n]" >> trivy.json
+                    """, returnStatus: false)
+                    script {
+                      TRIVY = readJSON file: 'trivy.json'
+                    }
                   }
                 }
               }
@@ -212,12 +221,14 @@ data:
                   IMAGES_STRING = sh(script: "docker ps -a --format '{{json .Image}}'", returnStdout: true).trim()
                 }
                 sh """#!/bin/bash
+                    NUM=0
                     images_string="${IMAGES_STRING}"
                     readarray -t images <<<"\\${images_string}"
 
                     for image in "\\${images[@]}"
                     do
-                      docker save "\\${image}" -o \\${image}.tar || true
+                      docker save "\\${image}" -o "\\${NUM}.tar" || true
+                      NUM=\\$(expr \\$NUM + 1)
                     done
                 """
                 container('trivy') {
@@ -227,12 +238,14 @@ data:
 
                     echo "[\n" > trivy.json
 
+                    NUM=0
                     for image in "\\${images[@]}"
                     do
-                      trivy image --no-progress --exit-code 0 --format template --template "@result.tpl" -o trivy_temp.json --input \\${image}.tar
+                      trivy image --no-progress --exit-code 0 --format template --template "@result.tpl" -o trivy_temp.json --input "\\${NUM}.tar"
                       cat trivy_temp.json >> trivy.json
                       echo "," >> trivy.json
-                      rm -rf \\${image}.tar
+                      rm -rf \\${NUM}.tar
+                      NUM=\\$(expr \\$NUM + 1)
                     done
 
                     echo "\n]" >> trivy.json
@@ -254,9 +267,12 @@ data:
             }
         }
         post {
-          always {
+          success {
             println JsonOutput.toJson(result)
-            //httpRequesst contentType: "APPLICATION_JSON", httpMode: "POST", requestBody: JsonOutput.toJson(result), url: "${BASE_URL}/v1/update"
+            httpRequest contentType: "APPLICATION_JSON", httpMode: "POST", requestBody: JsonOutput.toJson(result), url: "${BASE_URL}/v1/update"
+          }
+          failure {
+            httpRequest contentType: "APPLICATION_JSON", httpMode: "POST", requestBody: JsonOutput.toJson([id: ID, rid: RID]), url: "${BASE_URL}/v1/update/remove"
           }
         }
     }

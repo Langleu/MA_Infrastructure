@@ -9,6 +9,8 @@ const grakn = new Grakn('docker');
 const query = "match $deployment isa deployment, has rid $rid, has rawUrl $rawUrl, has name $name, has executable $executable, has score $score; $score < 0; get; limit 100;"
 
 const fillQueue = async () => {
+  if (Queue.lengthStorage() > 100) return;
+
   await grakn.openSession();
   const results = await grakn.runQuery(query);
   await grakn.closeSession();
@@ -18,18 +20,15 @@ const fillQueue = async () => {
 
 const extractGitHubInfos = (url) => {
   const splits = url.split('/');
-  let path = splits.slice(6,splits.length).join('/');
-  if (!path.contains('/'))
-    path = 'undefined';
-  
+
   return {
     clone: `https://github.com/${splits[3]}/${splits[4]}.git`,
-    compose_path: path
+    compose_path: splits.slice(6,splits.length-1).join('/')
   }
 }
 
 const triggerBuild = async () => {
-  if (Queue.lengthProgress() > 10) return;
+  if (Queue.lengthProgress() > 20 || Queue.lengthStorage == 0) return;
 
   const item = Queue.getRandom();
   if (!item) return;
@@ -40,12 +39,11 @@ const triggerBuild = async () => {
   delete params.executable;
   delete params.score;
 
+  params.BASE_URL = process.env.SELF || 'localhost:9889';
+
   const queryString = Object.keys(params).map(key => key.toUpperCase() + '=' + params[key]).join('&');
-  // TODO: catch error and retry or reque and delete from progress
-  // TODO: add logging
   await axios.post(`/job/compose-pipeline/buildWithParameters?${queryString}`, {});
 }
 
-// TODO: run tests with good interval values
 setInterval(fillQueue, 30000);
 setInterval(triggerBuild, 2000);

@@ -49,6 +49,16 @@ spec:
           value: /var/jenkins_casc.yml
         - name: JENKINS_URL
           value: https://localhost:9888
+        - name: DOCKER_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: docker
+              key: DOCKER_USERNAME
+        - name: DOCKER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: docker
+              key: DOCKER_TOKEN 
         - name: JAVA_OPTS
           value: |
             -Djenkins.install.runSetupWizard=false
