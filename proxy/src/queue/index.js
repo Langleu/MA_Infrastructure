@@ -5,6 +5,7 @@ class Queue {
   constructor() {
     this.storage = [];
     this.progress = [];
+    this.blacklist = [];
   }
 
   insert(obj) {
@@ -12,6 +13,7 @@ class Queue {
   }
 
   concat(arr) {
+    arr = _.differenceWith(arr, [...this.blacklist, ...this.progress], _.isEqual);
     this.storage = _.unionWith(this.storage, arr, _.isEqual);
   }
 
@@ -28,8 +30,9 @@ class Queue {
     const hasId = (e) => e.id == id;
 
     let pos = this.progress.findIndex(hasId);
-    this.progress.splice(pos, 1);
+    let remove = this.progress.splice(pos, 1);
 
+    this.blacklist.push(remove);
     console.log('Entry has been deleted from the progress queue');
   }
 

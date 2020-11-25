@@ -124,7 +124,12 @@ data:
             }
             stage('Git Checkout') {
                 steps {
-                  git poll: false, url: params.CLONE
+                  // default docker container causes exception due to root clone
+                  container('jnlp') {
+                    // workaround as the git step doesn#t clone the default branch and fails
+                    sh "git clone \${params.CLONE} ."
+                  }
+                  //git poll: false, url: params.CLONE
                 }
             }
             stage('Run Compose') {
@@ -174,8 +179,9 @@ data:
                     sh 'mkdir policy'
                     sh 'curl https://raw.githubusercontent.com/Langleu/MA_Infrastructure/master/conftest/policy/deny.rego > policy/deny.rego'
                     container('conftest') {
+                      sh "cp '\${params.NAME}' dckopse.yml"
                       script {
-                        CONFTEST_RESULT = readJSON text: sh(script: "conftest --no-color test --output json ${params.NAME} || true", returnStdout: true).trim()
+                        CONFTEST_RESULT = readJSON text: sh(script: "conftest --no-color test --output json dckopse.yml || true", returnStdout: true).trim()
                       }
                     }
                   }

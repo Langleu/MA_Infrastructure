@@ -6,7 +6,9 @@ const Queue = require('./../queue/index');
 const Grakn = require('./../database/grakn/index');
 const grakn = new Grakn('docker');
 
-const query = "match $deployment isa deployment, has rid $rid, has rawUrl $rawUrl, has name $name, has executable $executable, has score $score; $score < 0; get; limit 100;"
+var limit = process.env.LIMIT || 20;
+
+const query = "match $deployment isa deployment, has rid $rid, has rawUrl $rawUrl, has name $name, has executable $executable, has score $score; $score < 0; get; limit 300;"
 
 const fillQueue = async () => {
   if (Queue.lengthStorage() > 100) return;
@@ -28,7 +30,7 @@ const extractGitHubInfos = (url) => {
 }
 
 const triggerBuild = async () => {
-  if (Queue.lengthProgress() > 20 || Queue.lengthStorage == 0) return;
+  if (Queue.lengthProgress() > limit || Queue.lengthStorage == 0) return;
 
   const item = Queue.getRandom();
   if (!item) return;
@@ -45,5 +47,12 @@ const triggerBuild = async () => {
   await axios.post(`/job/compose-pipeline/buildWithParameters?${queryString}`, {});
 }
 
+// agents like to not start up and thereby block the queue
+const increaseLimit = () => {
+  limit = limit + 2;
+  console.log(`limit is currently at ${limit}`);
+}
+
 setInterval(fillQueue, 30000);
 setInterval(triggerBuild, 2000);
+setInterval(increaseLimit, 3600000);

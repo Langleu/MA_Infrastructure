@@ -119,7 +119,7 @@ data:
     jquery3-api:3.5.1-2
     jsch:0.1.55.2
     junit:1.36
-    kubernetes:1.27.4
+    kubernetes:1.27.1.1
     mailer:1.32.1
     mask-passwords:2.13
     matrix-project:1.18
