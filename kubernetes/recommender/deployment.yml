@@ -17,6 +17,10 @@ spec:
       containers:
       - name: recommender
         image: langleu/ma_recommender:latest
+        imagePullPolicy: Always
+        env:
+          - name: GRAKNURI
+            value: 'grakn.database:48555'
         ports:
         - name: http
           containerPort: 8088

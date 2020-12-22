@@ -105,5 +105,3 @@ any_networks(services) {
   service := services[i]
   service.networks
 }
-
-# TODO: environment++, restart++, just check in general for occurrences

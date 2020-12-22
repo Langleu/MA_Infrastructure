@@ -20,7 +20,7 @@ spec:
       terminationGracePeriodSeconds: 1800
       containers:
       - name: grakn
-        image: langleu/grakn:latest
+        image: graknlabs/grakn:1.8.4
         imagePullPolicy: IfNotPresent
         env:
         - name: SERVER_JAVAOPTS

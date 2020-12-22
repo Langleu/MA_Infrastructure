@@ -58,6 +58,8 @@ data:
         has created,
         has updated,
         has version,
+        has length,
+        has size,
         has score,
         has schemaVersion;
 
@@ -118,4 +120,10 @@ data:
         value string;
 
       schemaVersion sub attribute,
+        value long;
+
+      size sub attribute,
+        value long;
+      
+      length sub attribute,
         value long;
